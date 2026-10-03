@@ -1,0 +1,13 @@
+{
+  "name": "brianium",
+  "owner": {
+    "name": "brianium"
+  },
+  "description": "Claude Code mods by brianium",
+  "plugins": [
+    {
+      "name": "define-word",
+      "source": "./"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "define-word",
+  "displayName": "Define Word",
+  "version": "0.1.0",
+  "description": "Select a word to see its definition in a toast; /define opens a pane with the full entry and its meaning in this conversation",
+  "author": { "name": "brianium" },
+  "homepage": "https://github.com/brianium/define-word",
+  "repository": "https://github.com/brianium/define-word",
+  "license": "MIT",
+  "keywords": ["mod", "dictionary", "definitions", "learning"],
+  "types": "./types/index.d.ts"
+}
