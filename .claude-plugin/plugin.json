@@ -1,7 +1,7 @@
 {
   "name": "define-word",
   "displayName": "Define Word",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Select a word to see its definition in a toast; /define opens a pane with the full entry and its meaning in this conversation",
   "author": { "name": "brianium" },
   "homepage": "https://github.com/brianium/define-word",
