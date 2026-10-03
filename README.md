@@ -48,8 +48,10 @@ repository to list every hook and call the mod makes.
 Claude Code has no event for a mouse selection, so the mod checks
 `$.ui.selection()` every 150 ms and looks a term up once the same selection
 has held for two checks, so a drag in progress doesn't fire on half a word.
-Multi-line selections, code, and anything over three words are ignored, so
-selecting text to copy stays quiet.
+Multi-line selections, anything over three words, and anything that looks
+like code (paths, flags, `env_vars`, `camelCase`, `name@scope`, words with
+digits) are ignored, so selecting text to copy stays quiet. `/define <word>`
+looks up whatever you type.
 
 `/define` opens the pane at once and fills its two sections as they arrive:
 the dictionary entry (the same lookup as the toast), and the in-conversation

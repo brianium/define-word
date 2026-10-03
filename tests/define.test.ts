@@ -83,6 +83,28 @@ test('asTerm keeps short terms and skips paragraphs and code', () => {
   expect(asTerm('42')).toBe(undefined)
 })
 
+test('asTerm skips code selected to copy and keeps words with hyphens and apostrophes', () => {
+  expect(asTerm('claude plugin update define-word@brianium')).toBe(undefined)
+  expect(asTerm('define-word@brianium')).toBe(undefined)
+  expect(asTerm('CLAUDE_CODE_PLUGIN_DIRS')).toBe(undefined)
+  expect(asTerm('~/.claude/settings.json')).toBe(undefined)
+  expect(asTerm('`--plugin-dir`')).toBe(undefined)
+  expect(asTerm('--plugin-dir')).toBe(undefined)
+  expect(asTerm('/define')).toBe(undefined)
+  expect(asTerm('$HOME')).toBe(undefined)
+  expect(asTerm('v0.2.0')).toBe(undefined)
+  expect(asTerm('asTerm')).toBe(undefined)
+  expect(asTerm('e.prompt')).toBe(undefined)
+
+  expect(asTerm('claude plugin enable')).toBe('claude plugin enable')
+  expect(asTerm('well-known')).toBe('well-known')
+  expect(asTerm("don't")).toBe("don't")
+  expect(asTerm('API')).toBe('API')
+  expect(asTerm('Claude')).toBe('Claude')
+  expect(asTerm('café')).toBe('café')
+  expect(asTerm('“reason.”')).toBe('reason')
+})
+
 test('fromDictionary gives a brief line and a markdown entry', () => {
   const found = fromDictionary('idempotent', DICTIONARY)
   expect(found?.brief).toBe(

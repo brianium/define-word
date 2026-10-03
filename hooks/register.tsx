@@ -27,14 +27,20 @@ type DictionaryEntry = { word?: string; phonetic?: string; meanings?: Dictionary
  * selected to copy) is left alone.
  */
 export const asTerm = (text: string, maxWords = 3): string | undefined => {
-  if (/[\r\n]/.test(text)) return undefined
+  // A line break is a block; a leading -, /, ~, $, @ or backtick is a flag,
+  // a path, a command or a variable.
+  if (/[\r\n]/.test(text) || /^[-/~$@`]/.test(text.trim())) return undefined
   const term = text.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
   const words = term.split(/\s+/).filter(Boolean)
   const isTermLike =
     words.length >= 1 &&
     words.length <= maxWords &&
     term.length <= 48 &&
-    /\p{L}/u.test(term)
+    // Letters, hyphens and apostrophes only: a path, a flag, an env var or
+    // anything with digits in it was selected to copy, not to look up.
+    /^[\p{L}\p{M}'’\s-]+$/u.test(term) &&
+    // camelCase is an identifier; acronyms (API) and capitals (Claude) pass.
+    !/\p{Ll}\p{Lu}/u.test(term)
 
   return isTermLike ? term : undefined
 }
