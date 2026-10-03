@@ -38,6 +38,7 @@ A mod runs with your permissions, so here is everything this one reaches:
 | You select a term | The term, to the free dictionary at `api.dictionaryapi.dev` | Free |
 | The dictionary lacks the term or is slow (> 0.7 s) | The term, to **Haiku** on your plan or API key | One small completion |
 | You run `/define` | One extra question over **this conversation**, on your main model, with every tool denied | Mostly a prompt-cache read, plus a few sentences of output |
+| You run `/define` in a resumed session before its first new turn | The text of the latest messages (up to about 24,000 characters, tool calls left out), to **Haiku** | One small completion |
 
 Lookups are cached for the session. Run `claude plugin validate .` in this
 repository to list every hook and call the mod makes.
@@ -54,6 +55,11 @@ selecting text to copy stays quiet.
 the dictionary entry (the same lookup as the toast), and the in-conversation
 meaning, from `$.model.fork`, which asks the main model one question over the
 conversation as last sent without adding it to the transcript.
+
+A fork can only replay a request this process has already sent, so right
+after `--resume` (before your first new turn) it has nothing to fork. The mod
+then reads the transcript with `$.session.messages()` and asks Haiku the same
+question over the newest messages; the pane notes when Haiku answered.
 
 ## Development
 

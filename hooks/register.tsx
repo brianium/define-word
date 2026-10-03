@@ -5,6 +5,9 @@ import type { Definition } from '../types'
 
 const PANE = 'define-word'
 const POLL_MS = 150
+// How long a selection must hold still to count as done: a drag can pause
+// mid-word for a poll or two, and no event says the mouse came up.
+const SETTLE_MS = 450
 // The dictionary answers a word it knows in well under a second, and hangs on
 // one it lacks; past this, Haiku is asked too and the first answer wins.
 const HEDGE_MS = 700
@@ -73,6 +76,7 @@ export const fromDictionary = (term: string, body: string): Definition | undefin
 // Module state; a reload starts it over, which only empties the cache.
 const cache = new Map<string, Definition | undefined>()
 let candidate = ''
+let held = 0
 let shown = ''
 let isPolling = false
 
@@ -141,7 +145,7 @@ async function define($: EngineInterface, term: string): Promise<Definition | un
   return found
 }
 
-/** Watches the mouse selection; a term held still for two polls gets a toast. */
+/** Watches the mouse selection; a term held still for SETTLE_MS gets a toast. */
 async function poll($: EngineInterface) {
   if (isPolling) return
   isPolling = true
@@ -150,9 +154,11 @@ async function poll($: EngineInterface) {
     const text = selected?.text ?? ''
     if (text !== candidate) {
       candidate = text
+      held = 0
       return
     }
-    if (text === shown) return
+    held += 1
+    if (held * POLL_MS < SETTLE_MS || text === shown) return
     shown = text
 
     const term = asTerm(text)
@@ -160,6 +166,9 @@ async function poll($: EngineInterface) {
     $.ui.status(`define: looking up “${term}”…`)
     const found = await define($, term)
     $.ui.status(undefined)
+    // The drag went on while this looked up a fragment of the word; the
+    // whole word gets its own toast once it settles.
+    if ((await $.ui.selection())?.text !== text) return
     $.ui.toast(
       found ? `${clip(found.brief, 220)}  · /define for more` : `${term}: no definition found`,
       { timeoutMs: 9000 },
@@ -169,18 +178,58 @@ async function poll($: EngineInterface) {
   }
 }
 
+const CONTEXT_QUESTION = (term: string) =>
+  `In 2-4 sentences of plain prose, explain what "${term}" means as it is used in this ` +
+  `conversation and how it applies to what we are discussing. If it has not come up, say so ` +
+  `in a few words and give the sense most relevant to this conversation's subject.`
+
+/**
+ * The newest messages' text, oldest first, within `budget` characters. Tool
+ * calls and their results are left out; what was said carries the meaning.
+ */
+export const excerpt = (messages: { role: string; text: string }[], budget = 24000): string => {
+  const lines: string[] = []
+  let used = 0
+  for (const message of [...messages].reverse()) {
+    const text = message.text.trim()
+    if (text === '') continue
+    const line = `${message.role === 'user' ? 'User' : 'Assistant'}: ${clip(text, 2000)}`
+    if (used + line.length > budget) break
+    lines.unshift(line)
+    used += line.length
+  }
+  return lines.join('\n\n')
+}
+
+/**
+ * A fork has nothing to replay until this process has sent a request, as on
+ * a resumed session before its first turn; Haiku reads the transcript instead.
+ */
+async function fromTranscript($: EngineInterface, term: string): Promise<string> {
+  const transcript = excerpt(await $.session.messages())
+  if (transcript === '') return '*No conversation yet to read it against.*'
+
+  const reply = await $.model.complete({
+    model: 'haiku',
+    effort: 'low',
+    maxTokens: 400,
+    timeoutMs: 20000,
+    system: 'You explain terms as a conversation uses them. Plain prose, no preamble.',
+    prompt: `<conversation>\n${transcript}\n</conversation>\n\n${CONTEXT_QUESTION(term)}`,
+  })
+  return reply.isAnswered
+    ? `${reply.text.trim()}\n\n*Read by Haiku from the recent transcript.*`
+    : `*Could not ask the model: ${reply.reason}.*`
+}
+
 async function fillContext($: EngineInterface, term: string) {
   const reply = await $.model.fork({
-    prompt:
-      `[define-word] Pause the task; do not call tools. In 2-4 sentences of plain prose, ` +
-      `explain what "${term}" means as it is used in this conversation and how it applies ` +
-      `to what we are discussing. If it has not come up, say so in a few words and give ` +
-      `the sense most relevant to this conversation's subject.`,
+    prompt: `[define-word] Pause the task; do not call tools. ${CONTEXT_QUESTION(term)}`,
   })
   const text = reply.isAnswered
     ? reply.text.trim()
     : reply.reason === 'nothing-to-fork'
-      ? '*No conversation yet to read it against.*'
+      ? await fromTranscript($, term)
       : `*Could not ask the model: ${reply.reason}.*`
   await update($, entry, now => (now?.term === term ? { ...now, context: text } : now))
 }
